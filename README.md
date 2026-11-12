@@ -1,10 +1,28 @@
-# Transparent CSV cleanup â€” tested example
+# Transparent CSV cleanup — tested example
 
 A **self-directed synthetic demonstration**, not a customer order, review, or testimonial.
 
 I offer bounded CSV/Excel cleanup on Fiverr through seller **awabm1234**. Starter scope: one CSV/Excel data file of up to 100 rows, with an agreed duplicate rule, standard formatting, and a concise change log. Missing or ambiguous facts are flagged, not invented. AI-assisted preparation and independent checks are part of the workflow.
 
 **Request the service on Fiverr:** https://www.fiverr.com/awabm1234
+
+## Free check before you order
+
+Not sure your file fits the US$15 package? `intake/intake_check.py` reads one `.csv` or `.xlsx` file on your own computer and reports:
+
+- whether it is inside the 100-row scope;
+- how many fully blank rows and exact duplicate rows it has;
+- which columns have unclear dates, leading zeros, mixed capitalisation, blanks or currency symbols;
+- the exact questions I would ask before changing anything.
+
+Your file is never modified or uploaded. The report shows counts, column names and row numbers only, never cell values. See the [sample report](intake/sample_intake_report.md).
+
+```powershell
+pip install openpyxl   # only needed for .xlsx files
+python -B intake/intake_check.py your_file.csv --out report.md
+```
+
+Ten automated tests cover the check (`python -B -m unittest discover -s intake`). It checks a file; it does not clean it. `.xlsx` reading was tested with openpyxl, not in desktop Excel.
 
 ## Original proof
 
