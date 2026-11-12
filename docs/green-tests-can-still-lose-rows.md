@@ -16,8 +16,8 @@ Imagine these two source records:
 
 | Original record | ID | Name | Category | Qty | Price |
 | --- | --- | --- | --- | --- | --- |
-| 2 | 0002 | \`Desk Marker\` | \`OFFICE\` | \`6\` | \`2.00\` |
-| 16 | 0002 | \` Desk Marker \` | \`Office\` | \`06\` | \`2\` |
+| 2 | 0002 | `Desk Marker` | `OFFICE` | `6` | `2.00` |
+| 16 | 0002 | ` Desk Marker ` | `Office` | `06` | `2` |
 
 Normalization makes the output rows identical. But that does **not** prove the original rows represented one transaction. A cleaner that deduplicates *after* normalization would silently throw one away.
 
@@ -25,7 +25,7 @@ In my bounded demo, exact raw duplicates are removable only when all seven sourc
 
 The difference is only a few lines of code, but it changes the contract: the cleaner is permitted to standardize formatting, not guess record identity.
 
-\`\`\`python
+```python
 key = tuple(row)                 # raw input, before normalization
 if key in seen:
     removed.append({
@@ -36,7 +36,7 @@ if key in seen:
     continue
 seen[key] = source_row
 cleaned = [normalise(col, value) for col, value in zip(HEADERS, row)]
-\`\`\`
+```
 
 This also exposes a design choice: **exact** duplicate means byte-for-byte-equivalent parsed field values, not case-insensitive business identity. That trade-off is conservative and reviewable.
 
@@ -46,9 +46,9 @@ The original file contains 18 data records. The output contains 14. Four disappe
 
 Every retained row therefore gets a one-based mapping to the source record:
 
-\`\`\`json
+```json
 {"output_row": 1, "source_row": 1}
-\`\`\`
+```
 
 Every removal gets its own reason, and duplicate removals point to the first occurrence. In the published fixture, source records 3 and 13 are exact duplicates; records 4 and 10 are fully blank.
 
@@ -60,20 +60,20 @@ The point of the ledger is not bureaucracy. It's the ability to answer a buyer w
 
 ## 3. Don't make up missing facts
 
-A field containing \`0\` is not equivalent to an empty field. The demo preserves a real zero quantity and price while leaving missing quantity or price values empty and flagged.
+A field containing `0` is not equivalent to an empty field. The demo preserves a real zero quantity and price while leaving missing quantity or price values empty and flagged.
 
-Dates are more treacherous. Converting \`2026/11/01\` to \`2026-11-01\` is safe under the agreed YYYY/MM/DD rule. Converting \`11/04/2026\` is not: it could mean April 11 or November 4. The code preserves the latter string and asks for clarification.
+Dates are more treacherous. Converting `2026/11/01` to `2026-11-01` is safe under the agreed YYYY/MM/DD rule. Converting `11/04/2026` is not: it could mean April 11 or November 4. The code preserves the latter string and asks for clarification.
 
-The same rule applies to unrecognized category labels. \`OFFICE\` is mapped to \`Office\` because "office" is in the agreed dictionary. \`Mixed\` is not "fixed" into one of the known categories.
+The same rule applies to unrecognized category labels. `OFFICE` is mapped to `Office` because "office" is in the agreed dictionary. `Mixed` is not "fixed" into one of the known categories.
 
-One useful engineering constraint was making numeric formatting explicit with \`Decimal\`, rather than round-tripping money through binary floating-point arithmetic:
+One useful engineering constraint was making numeric formatting explicit with `Decimal`, rather than round-tripping money through binary floating-point arithmetic:
 
-\`\`\`python
+```python
 if column == "Unit_Price_CAD" and re.fullmatch(
-    r"[0-9]+(?:\.[0-9]{1,2})?", value
+    r"[0-9]+(?:.[0-9]{1,2})?", value
 ):
     return format(Decimal(value), ".2f")
-\`\`\`
+```
 
 Unsupported numeric strings are preserved, not guessed. That's more important than producing a visually uniform spreadsheet at any cost.
 
@@ -81,7 +81,7 @@ Unsupported numeric strings are preserved, not guessed. That's more important th
 
 Unit tests catch regressions, but a test that merely calls the cleaning function and trusts its output can repeat the same mistake.
 
-The independent \`validate.py\` script starts from the published source CSV and checks the delivered CSV, JSON audit receipt and hashes. It reconstructs which source rows should remain, verifies their order, recomputes allowed transformations by column, and rejects missing or invented nonempty values.
+The independent `validate.py` script starts from the published source CSV and checks the delivered CSV, JSON audit receipt and hashes. It reconstructs which source rows should remain, verifies their order, recomputes allowed transformations by column, and rejects missing or invented nonempty values.
 
 It separately compares the exact cell-change ledger and review flags against the transformations that actually occurred. If an output cell is changed without a matching receipt—or if a receipt claims an edit that never occurred—the verifier fails.
 
@@ -93,11 +93,11 @@ A second way to test integrity is mutation: regenerate the files, deliberately a
 
 From the project root with Python 3:
 
-\`\`\`powershell
+```powershell
 python -B cleanup_demo.py
 python -B -m unittest -v test_cleanup
 python -B validate.py
-\`\`\`
+```
 
 The [project README](https://github.com/Awab-M/csv-cleanup-portfolio/blob/main/README.md) links directly to the [synthetic input](https://github.com/Awab-M/csv-cleanup-portfolio/blob/main/synthetic_input.csv), [cleaned output](https://github.com/Awab-M/csv-cleanup-portfolio/blob/main/cleaned_output.csv), [change log](https://github.com/Awab-M/csv-cleanup-portfolio/blob/main/CHANGELOG.md) and [independent checker](https://github.com/Awab-M/csv-cleanup-portfolio/blob/main/validate.py).
 
