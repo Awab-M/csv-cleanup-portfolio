@@ -1,0 +1,19 @@
+Item_ID,Item_Name,Category,Quantity,Unit_Price_CAD,Stock_Date,Supplier_Note
+0001,  Grid Notebook ,office,010,4.5,2026/11/01,
+0002,Desk Marker,OFFICE,6,2.00,2026-11-02,Sample only
+0001,  Grid Notebook ,office,010,4.5,2026/11/01,
+,,,,,,
+0003,Binder Clips, Office ,12,3.5,2026/11/03,
+0004,Stoneware Mug,kitchen,004,8,2026-11-03,
+0005,Label Roll,office,,6.75,2026-11-04,Quantity not supplied
+0006,Cable Box,storage,002,18.00,2026/11/04,"Demo, size ""M"""
+0007,Tea Towel,Kitchen,8,5.0,11/04/2026,Date needs owner confirmation
+ ,  , , ,  , ," "
+0008,Drawer Tray,STORAGE,3,0015.5,2026-11-05,
+0009,Sample Bundle,Mixed,1,11.25,2026-11-05,Category needs owner confirmation
+0004,Stoneware Mug,kitchen,004,8,2026-11-03,
+0010,Refill Pad,Office,0,0,2026-11-06,Keep  two  spaces
+0011,Sheet Pack,office,5,7.0,2026/11/06,
+0002, Desk Marker ,Office,06,2,2026/11/02,Sample only
+0012,Pen Cup,office,9,,2026-11-07,Price not supplied
+0013,Foam Tray,Storage,4,9.95,,Date not supplied
