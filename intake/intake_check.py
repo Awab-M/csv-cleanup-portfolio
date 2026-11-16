@@ -43,6 +43,21 @@ def _cell_text(cell) -> str:
     return str(v)
 
 
+def _guess_delimiter(text: str) -> str:
+    """Most frequent candidate delimiter in the header record, ignoring any inside quotes."""
+    counts = dict.fromkeys(",;\t|", 0)
+    quoted = False
+    for ch in text:
+        if ch == '"':
+            quoted = not quoted
+        elif not quoted:
+            if ch in counts:
+                counts[ch] += 1
+            elif ch == "\n":
+                break
+    return max(counts, key=counts.get)
+
+
 def load_table(path: Path):
     """Return (format, records, notes). records[0] is the header row."""
     ext = path.suffix.lower()
@@ -52,10 +67,12 @@ def load_table(path: Path):
         try:
             text = raw.decode("utf-8-sig")
         except UnicodeDecodeError:
-            text = raw.decode("cp1252")
+            try:
+                text = raw.decode("cp1252")
+            except UnicodeDecodeError:
+                raise IntakeError("File is not UTF-8 or Windows-1252 text. Ask the buyer to re-export it as CSV UTF-8.") from None
             notes.append("File is not UTF-8; read as Windows-1252. Confirm accented characters look right.")
-        first = text.split("\n", 1)[0]
-        delim = max(",;\t|", key=first.count)
+        delim = _guess_delimiter(text)
         if delim != ",":
             notes.append(f"Delimiter is {delim!r}, not a comma.")
         records = [list(r) for r in csv.reader(io.StringIO(text, newline=""), delimiter=delim)]

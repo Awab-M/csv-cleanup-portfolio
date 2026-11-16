@@ -70,7 +70,7 @@ One useful engineering constraint was making numeric formatting explicit with `D
 
 ```python
 if column == "Unit_Price_CAD" and re.fullmatch(
-    r"[0-9]+(?:.[0-9]{1,2})?", value
+    r"[0-9]+(?:\.[0-9]{1,2})?", value
 ):
     return format(Decimal(value), ".2f")
 ```

@@ -22,7 +22,7 @@ pip install openpyxl   # only needed for .xlsx files
 python -B intake/intake_check.py your_file.csv --out report.md
 ```
 
-Ten automated tests cover the check (`python -B -m unittest discover -s intake`). It checks a file; it does not clean it. `.xlsx` reading was tested with openpyxl, not in desktop Excel.
+Twelve automated tests cover the check (`python -B -m unittest discover -s intake`). It checks a file; it does not clean it. `.xlsx` reading was tested with openpyxl, not in desktop Excel.
 
 ## Original proof
 

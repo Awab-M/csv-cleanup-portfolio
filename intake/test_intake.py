@@ -64,6 +64,19 @@ class IntakeTests(unittest.TestCase):
         p2 = ic.profile(write(self.tmp, "w.csv", "Nom,Prix\nCafé,2\n", encoding="cp1252"))
         self.assertTrue(any("Windows-1252" in n for n in p2["file_notes"]))
 
+    def test_undecodable_csv_is_reported_not_a_traceback(self):
+        f = self.tmp / "bin.csv"
+        f.write_bytes(b"a,b\n1,2\n\x81\x8d,3\n")  # invalid UTF-8 and undefined in Windows-1252
+        with self.assertRaises(ic.IntakeError):
+            ic.profile(f)
+        self.assertEqual(ic.main([str(f)]), 1)
+
+    def test_delimiter_ignores_separators_inside_quoted_header(self):
+        p = ic.profile(write(self.tmp, "q.csv", 'id,"x;y;z;w"\n1,2\n'))
+        self.assertEqual((p["column_count"], p["scope"]), (2, "IN_SCOPE"))
+        self.assertEqual(p["columns"][1]["name"], "x;y;z;w")
+        self.assertFalse(any("Delimiter" in n for n in p["file_notes"]))
+
     def test_date_classes(self):
         self.assertEqual(ic._date_class("2026-11-01"), "year-first")
         self.assertEqual(ic._date_class("11/04/2026"), "ambiguous")
