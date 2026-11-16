@@ -6,7 +6,7 @@ Public portfolio repo proving a small CSV-cleanup service. It is evidence, so ev
 - `python -B cleanup_demo.py` rebuilds `cleaned_output.csv`, `change_log.json`, `CHANGELOG.md` from `synthetic_input.csv`; must leave `git status` clean.
 - `python -B -m unittest -v test_cleanup` runs the 21 cleaner/validator tests.
 - `python -B validate.py` runs the independent checker (prints PASS).
-- `python -B -m unittest discover -s intake` runs the 15 intake tests.
+- `python -B -m unittest discover -s intake` runs the 16 intake tests.
 - `python -B intake/intake_check.py FILE.csv --out report.md` runs the pre-order check (exit 0 in scope, 2 out of scope, 1 unreadable).
 
 ## Layout

@@ -24,7 +24,7 @@ DATE_SEP = re.compile(r"^(\d{1,4})[/\-.](\d{1,2})[/\-.](\d{1,4})$")
 LEADING_ZERO = re.compile(r"^0\d+$")
 NUMBER = re.compile(r"^[+-]?\d+([.,]\d+)?$")
 MONEY = re.compile(r"^[\$€£]|[\$€£]$|\d,\d{3}")
-PHONE_LIKE = re.compile(r"^\+[0-9 .()\-]+$")  # a leading + then digits, spaces, dots, hyphens, parentheses
+PHONE_LIKE = re.compile(r"^\+[0-9 .()]+$")  # a leading + then digits, spaces, dots, parentheses; a hyphen is arithmetic to a spreadsheet
 
 
 class IntakeError(Exception):
@@ -144,12 +144,12 @@ def profile(path: Path) -> dict:
         notes.append(f"{leading_blank} blank line(s) before the header; the first non-blank line is treated as the header.")
     ragged = []
     if fmt == "csv":
-        ragged = [n for n, r in enumerate(records, 1) if any(x.strip() for x in r) and len(r) != len(records[0])]
+        ragged = [n for n, r in enumerate(records, 1 + leading_blank) if any(x.strip() for x in r) and len(r) != len(records[0])]
     width = max(len(r) for r in records)
     records = [r + [""] * (width - len(r)) for r in records]
     keep = [i for i in range(width) if any(r[i].strip() for r in records)]
     header = [records[0][i].strip() for i in keep]
-    body = [(n, [r[i] for i in keep]) for n, r in enumerate(records[1:], 2)]
+    body = [(n, [r[i] for i in keep]) for n, r in enumerate(records[1:], 2 + leading_blank)]
 
     header_issues = []
     if any(not h for h in header):

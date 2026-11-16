@@ -143,6 +143,11 @@ class IntakeTests(unittest.TestCase):
         self.assertNotIn("no header name", text)
         self.assertNotIn("different number of fields", text)
 
+    def test_row_numbers_match_the_file_when_blank_lines_precede_the_header(self):
+        p = ic.profile(write(self.tmp, "lead.csv", "\n\nid,v\n0001,Mug\n,\n0002,=1+1\n"))
+        self.assertEqual(p["blank_rows"], [5])
+        self.assertEqual(self.col(p, "v")["formula_like_rows"], [6])
+
     def test_one_blank_line_before_header_does_not_count_header_as_data(self):
         rows = "".join(f"{i},x{i}\n" for i in range(100))
         p = ic.profile(write(self.tmp, "b100.csv", "\nid,v\n" + rows))
@@ -150,10 +155,10 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(p["leading_blank_lines"], 1)
 
     def test_phone_numbers_not_formula_like_but_formula_shapes_still_flagged(self):
-        phone = ["+1 555 010 0199", "+44 20 7946 0958", "+1 (555) 010-0199", "+555 0101"]  # last has exactly 7 digits
-        shapes = ["+12 34 56", "+SUM(A1)", "+1+1", "=1+1", "-2+3", "@cmd", "-555 010 0199"]
+        phone = ["+1 555 010 0199", "+44 20 7946 0958", "+1 (555) 010 0199", "+555 0101"]  # last has exactly 7 digits
+        shapes = ["+12 34 56", "+SUM(A1)", "+1+1", "=1+1", "-2+3", "@cmd", "-555 010 0199", "+1-555-010-0199", "+1-1-1-1-1-1-1", "+1 (555) 010-0199"]
         p = ic.profile(write(self.tmp, "ph.csv", "Phone\n" + "\n".join(phone + shapes) + "\n"))
-        self.assertEqual(self.col(p, "Phone")["formula_like_rows"], [6, 7, 8, 9, 10, 11, 12])
+        self.assertEqual(self.col(p, "Phone")["formula_like_rows"], list(range(6, 16)))
 
     def test_clean_file_has_no_questions(self):
         p = ic.profile(write(self.tmp, "c.csv", "id,name\n1,Pen\n2,Ink\n"))
