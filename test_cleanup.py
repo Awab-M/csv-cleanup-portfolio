@@ -2,6 +2,8 @@ import csv
 import hashlib
 import json
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -95,6 +97,47 @@ class CleanupTests(unittest.TestCase):
         path.write_text(",".join(HEADERS) + "\n1,short\n", encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "seven fields"):
             read_input(path)
+
+    def test_non_utf8_input_refused_with_clear_message(self):
+        path = self.root / "latin1.csv"
+        path.write_bytes(",".join(HEADERS).encode() + b"\n0001,Caf\xe9 Mug,Kitchen,1,2.00,2026-11-01,\n")
+        with self.assertRaisesRegex(ValueError, "UTF-8"):
+            read_input(path)
+
+    def test_malformed_csv_refused_with_clear_message(self):
+        path = self.root / "quote.csv"
+        path.write_text(",".join(HEADERS) + '\n0001,"Mug" x,Kitchen,1,2.00,2026-11-01,\n', encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "well-formed CSV"):
+            read_input(path)
+
+    def test_quantity_over_4300_digits_refused_clearly_at_limit_accepted(self):
+        row = ["0001", "Mug", "Office", "9" * 4301, "1.00", "2026-11-01", ""]
+        with self.assertRaisesRegex(ValueError, "Data record 1: Quantity has more than 4300 digits"):
+            clean_rows([row])
+        output, _ = clean_rows([["0001", "Mug", "Office", "9" * 4300, "1.00", "2026-11-01", ""]])
+        self.assertEqual(output[0][3], "9" * 4300)
+
+    def test_bad_input_prints_one_line_error_never_a_traceback(self):
+        script = self.root / "cleanup_demo.py"
+        shutil.copyfile(ROOT / "cleanup_demo.py", script)
+        header = ",".join(HEADERS)
+        cases = {
+            "non-UTF-8": ((header + "\n0001,Caf\xe9,Office,1,1.00,2026-11-01,\n").encode("cp1252"), "UTF-8"),
+            "4301-digit quantity": ((header + "\n0001,Mug,Office," + "9" * 4301 + ",1.00,2026-11-01,\n").encode(), "more than 4300 digits"),
+            "wrong header": (b"Item,Name\n0001,Mug\n", "headers"),
+            "trailing blank line": ((header + "\n0001,Mug,Office,1,1.00,2026-11-01,\n\n").encode(), "seven fields"),
+            "malformed quote": ((header + '\n0001,"Mug" x,Office,1,1.00,2026-11-01,\n').encode(), "well-formed CSV"),
+        }
+        for name, (data, expected) in cases.items():
+            with self.subTest(name):
+                (self.root / "synthetic_input.csv").write_bytes(data)
+                result = subprocess.run([sys.executable, "-B", str(script)], cwd=self.root,
+                                        capture_output=True, text=True, timeout=60)
+                self.assertEqual(result.returncode, 1)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(len(result.stderr.strip().splitlines()), 1)
+                self.assertIn(expected, result.stderr)
 
     def test_utf8_bom_unicode_and_quoted_fields_round_trip(self):
         row = ["0001", "Caf\u00e9 mug", "Kitchen", "1", "2", "2026-11-01", 'Demo, size "M"\nsecond line']

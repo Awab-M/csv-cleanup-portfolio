@@ -4,9 +4,9 @@ Public portfolio repo proving a small CSV-cleanup service. It is evidence, so ev
 
 ## Commands (run from repo root)
 - `python -B cleanup_demo.py` rebuilds `cleaned_output.csv`, `change_log.json`, `CHANGELOG.md` from `synthetic_input.csv`; must leave `git status` clean.
-- `python -B -m unittest -v test_cleanup` runs the 17 cleaner/validator tests.
+- `python -B -m unittest -v test_cleanup` runs the 21 cleaner/validator tests.
 - `python -B validate.py` runs the independent checker (prints PASS).
-- `python -B -m unittest discover -s intake` runs the 12 intake tests.
+- `python -B -m unittest discover -s intake` runs the 15 intake tests.
 - `python -B intake/intake_check.py FILE.csv --out report.md` runs the pre-order check (exit 0 in scope, 2 out of scope, 1 unreadable).
 
 ## Layout
@@ -30,8 +30,6 @@ Public portfolio repo proving a small CSV-cleanup service. It is evidence, so ev
 - If `synthetic_input.csv` changes, regenerate artifacts and `intake/sample_intake_report.md`.
 
 ## Known gaps (priority order)
-1. `cleanup_demo.py` only accepts UTF-8 (BOM ok) with the exact 7 headers; a trailing blank line, other encodings or a 4300+ digit quantity raise errors instead of a friendly message.
-2. Demo date rule covers only YYYY/MM/DD and YYYY-MM-DD; no other formats are converted.
-3. Intake: a file with blank lines before the header is reported as NEEDS_STRUCTURE_FIX with confusing questions; phone-style `+1 ...` values are flagged formula-like.
-4. `.xlsx` intake is tested only with openpyxl, not desktop Excel; the demo cleaner handles CSV only.
-5. The case study links to GitHub URLs, so it cannot be verified offline.
+1. Demo date rule covers only YYYY/MM/DD and YYYY-MM-DD; no other formats are converted.
+2. `.xlsx` intake is tested only with openpyxl, not desktop Excel; the demo cleaner handles CSV only.
+3. The case study links to GitHub URLs, so it cannot be verified offline.

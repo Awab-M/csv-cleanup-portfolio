@@ -24,6 +24,7 @@ DATE_SEP = re.compile(r"^(\d{1,4})[/\-.](\d{1,2})[/\-.](\d{1,4})$")
 LEADING_ZERO = re.compile(r"^0\d+$")
 NUMBER = re.compile(r"^[+-]?\d+([.,]\d+)?$")
 MONEY = re.compile(r"^[\$€£]|[\$€£]$|\d,\d{3}")
+PHONE_LIKE = re.compile(r"^\+[0-9 .()\-]+$")  # a leading + then digits, spaces, dots, hyphens, parentheses
 
 
 class IntakeError(Exception):
@@ -117,12 +118,30 @@ def _date_class(value: str) -> str | None:
     return None
 
 
+def _formula_like(value: str) -> bool:
+    """True when a spreadsheet could read the value as a formula. Phone numbers such as +1 555 010 0199 are not."""
+    if value[0] in "=@":
+        return True
+    if value[0] in "+-":
+        if NUMBER.match(value):
+            return False
+        phone = PHONE_LIKE.match(value) and len(re.findall(r"[0-9]", value)) >= 7
+        return not phone
+    return False
+
+
 def profile(path: Path) -> dict:
     fmt, records, notes = load_table(path)
     if not records:
         raise IntakeError("File is empty.")
     while len(records) > 1 and not any(x.strip() for x in records[-1]):
         records.pop()  # trailing empty rows are spreadsheet padding, not data
+    leading_blank = 0
+    while len(records) > 1 and not any(x.strip() for x in records[0]):
+        records.pop(0)  # blank lines before the header; the first non-blank record is the header
+        leading_blank += 1
+    if leading_blank:
+        notes.append(f"{leading_blank} blank line(s) before the header; the first non-blank line is treated as the header.")
     ragged = []
     if fmt == "csv":
         ragged = [n for n, r in enumerate(records, 1) if any(x.strip() for x in r) and len(r) != len(records[0])]
@@ -173,11 +192,10 @@ def profile(path: Path) -> dict:
             "currency_or_thousands_cells": sum(bool(MONEY.search(v.strip())) for _, v in filled),
             "date_classes": classes,
             "ambiguous_date_rows": ambiguous,
-            "formula_like_rows": [n for n, v in filled
-                                  if v.strip()[0] in "=@" or (v.strip()[0] in "+-" and not NUMBER.match(v.strip()))],
+            "formula_like_rows": [n for n, v in filled if _formula_like(v.strip())],
         })
 
-    in_scope = len(data) <= ROW_LIMIT and not header_issues and not ragged
+    in_scope = len(data) <= ROW_LIMIT and not header_issues and not ragged and not leading_blank
     result = {
         "file": path.name,
         "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
@@ -189,6 +207,7 @@ def profile(path: Path) -> dict:
         "blank_rows": blank_rows,
         "exact_duplicate_rows": dup_rows,
         "ragged_rows": ragged,
+        "leading_blank_lines": leading_blank,
         "header_issues": header_issues,
         "file_notes": notes,
         "columns": columns,
@@ -202,6 +221,9 @@ def questions(p: dict) -> list[str]:
     if p["scope"] == "OVER_ROW_LIMIT":
         q.append(f"The file has {p['data_rows']} data rows; the Basic package covers {p['row_limit']}. "
                  "Which rows should I work on, or would you like a custom offer for the full file?")
+    if p["leading_blank_lines"]:
+        q.append(f"The file has {p['leading_blank_lines']} blank line(s) before the header row. "
+                 "OK to remove them so the header is the first row?")
     if p["exact_duplicate_rows"]:
         q.append(f"{len(p['exact_duplicate_rows'])} row(s) are exact copies of an earlier row "
                  f"(rows {_rows(p['exact_duplicate_rows'])}). OK to remove them and keep the first copy?")

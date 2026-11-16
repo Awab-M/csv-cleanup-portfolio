@@ -131,6 +131,30 @@ class IntakeTests(unittest.TestCase):
                 ic.profile(f)
             self.assertEqual(ic.main([str(f)]), 1)
 
+    def test_blank_lines_before_header_reported_plainly(self):
+        p = ic.profile(write(self.tmp, "bl.csv", "\n\nid,name\n1,Pen\n2,Ink\n"))
+        self.assertEqual([c["name"] for c in p["columns"]], ["id", "name"])
+        self.assertEqual((p["column_count"], p["data_rows"]), (2, 2))
+        self.assertEqual((p["header_issues"], p["ragged_rows"], p["blank_rows"]), ([], [], []))
+        self.assertEqual(p["scope"], "NEEDS_STRUCTURE_FIX")
+        self.assertEqual(p["leading_blank_lines"], 2)
+        text = ic.render(p)
+        self.assertIn("2 blank line(s) before the header", text)
+        self.assertNotIn("no header name", text)
+        self.assertNotIn("different number of fields", text)
+
+    def test_one_blank_line_before_header_does_not_count_header_as_data(self):
+        rows = "".join(f"{i},x{i}\n" for i in range(100))
+        p = ic.profile(write(self.tmp, "b100.csv", "\nid,v\n" + rows))
+        self.assertEqual(p["data_rows"], 100)
+        self.assertEqual(p["leading_blank_lines"], 1)
+
+    def test_phone_numbers_not_formula_like_but_formula_shapes_still_flagged(self):
+        phone = ["+1 555 010 0199", "+44 20 7946 0958", "+1 (555) 010-0199", "+555 0101"]  # last has exactly 7 digits
+        shapes = ["+12 34 56", "+SUM(A1)", "+1+1", "=1+1", "-2+3", "@cmd", "-555 010 0199"]
+        p = ic.profile(write(self.tmp, "ph.csv", "Phone\n" + "\n".join(phone + shapes) + "\n"))
+        self.assertEqual(self.col(p, "Phone")["formula_like_rows"], [6, 7, 8, 9, 10, 11, 12])
+
     def test_clean_file_has_no_questions(self):
         p = ic.profile(write(self.tmp, "c.csv", "id,name\n1,Pen\n2,Ink\n"))
         self.assertEqual(p["questions"], [])
