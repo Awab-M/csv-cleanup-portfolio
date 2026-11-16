@@ -64,6 +64,19 @@ class IntakeTests(unittest.TestCase):
         p2 = ic.profile(write(self.tmp, "w.csv", "Nom,Prix\nCafé,2\n", encoding="cp1252"))
         self.assertTrue(any("Windows-1252" in n for n in p2["file_notes"]))
 
+    def test_undecodable_csv_is_reported_not_a_traceback(self):
+        f = self.tmp / "bin.csv"
+        f.write_bytes(b"a,b\n1,2\n\x81\x8d,3\n")  # invalid UTF-8 and undefined in Windows-1252
+        with self.assertRaises(ic.IntakeError):
+            ic.profile(f)
+        self.assertEqual(ic.main([str(f)]), 1)
+
+    def test_delimiter_ignores_separators_inside_quoted_header(self):
+        p = ic.profile(write(self.tmp, "q.csv", 'id,"x;y;z;w"\n1,2\n'))
+        self.assertEqual((p["column_count"], p["scope"]), (2, "IN_SCOPE"))
+        self.assertEqual(p["columns"][1]["name"], "x;y;z;w")
+        self.assertFalse(any("Delimiter" in n for n in p["file_notes"]))
+
     def test_date_classes(self):
         self.assertEqual(ic._date_class("2026-11-01"), "year-first")
         self.assertEqual(ic._date_class("11/04/2026"), "ambiguous")
@@ -117,6 +130,35 @@ class IntakeTests(unittest.TestCase):
             with self.assertRaises(ic.IntakeError):
                 ic.profile(f)
             self.assertEqual(ic.main([str(f)]), 1)
+
+    def test_blank_lines_before_header_reported_plainly(self):
+        p = ic.profile(write(self.tmp, "bl.csv", "\n\nid,name\n1,Pen\n2,Ink\n"))
+        self.assertEqual([c["name"] for c in p["columns"]], ["id", "name"])
+        self.assertEqual((p["column_count"], p["data_rows"]), (2, 2))
+        self.assertEqual((p["header_issues"], p["ragged_rows"], p["blank_rows"]), ([], [], []))
+        self.assertEqual(p["scope"], "NEEDS_STRUCTURE_FIX")
+        self.assertEqual(p["leading_blank_lines"], 2)
+        text = ic.render(p)
+        self.assertIn("2 blank line(s) before the header", text)
+        self.assertNotIn("no header name", text)
+        self.assertNotIn("different number of fields", text)
+
+    def test_row_numbers_match_the_file_when_blank_lines_precede_the_header(self):
+        p = ic.profile(write(self.tmp, "lead.csv", "\n\nid,v\n0001,Mug\n,\n0002,=1+1\n"))
+        self.assertEqual(p["blank_rows"], [5])
+        self.assertEqual(self.col(p, "v")["formula_like_rows"], [6])
+
+    def test_one_blank_line_before_header_does_not_count_header_as_data(self):
+        rows = "".join(f"{i},x{i}\n" for i in range(100))
+        p = ic.profile(write(self.tmp, "b100.csv", "\nid,v\n" + rows))
+        self.assertEqual(p["data_rows"], 100)
+        self.assertEqual(p["leading_blank_lines"], 1)
+
+    def test_phone_numbers_not_formula_like_but_formula_shapes_still_flagged(self):
+        phone = ["+1 555 010 0199", "+44 20 7946 0958", "+1 (555) 010 0199", "+555 0101"]  # last has exactly 7 digits
+        shapes = ["+12 34 56", "+SUM(A1)", "+1+1", "=1+1", "-2+3", "@cmd", "-555 010 0199", "+1-555-010-0199", "+1-1-1-1-1-1-1", "+1 (555) 010-0199"]
+        p = ic.profile(write(self.tmp, "ph.csv", "Phone\n" + "\n".join(phone + shapes) + "\n"))
+        self.assertEqual(self.col(p, "Phone")["formula_like_rows"], list(range(6, 16)))
 
     def test_clean_file_has_no_questions(self):
         p = ic.profile(write(self.tmp, "c.csv", "id,name\n1,Pen\n2,Ink\n"))

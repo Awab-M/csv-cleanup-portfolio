@@ -5,6 +5,7 @@ import csv
 import hashlib
 import json
 import re
+import sys
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -13,11 +14,17 @@ ROOT = Path(__file__).resolve().parent
 HEADERS = ["Item_ID", "Item_Name", "Category", "Quantity", "Unit_Price_CAD", "Stock_Date", "Supplier_Note"]
 CATEGORIES = {"office": "Office", "kitchen": "Kitchen", "storage": "Storage"}
 REQUIRED = HEADERS[:-1]
+MAX_QUANTITY_DIGITS = 4300  # Python's int-to-text limit; longer quantities are refused, never converted
 
 
 def read_input(path: Path) -> list[list[str]]:
-    with path.open(encoding="utf-8-sig", newline="") as handle:
-        rows = list(csv.reader(handle, strict=True))
+    try:
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            rows = list(csv.reader(handle, strict=True))
+    except UnicodeDecodeError:
+        raise ValueError("Input is not UTF-8 text (a byte-order mark is fine). Re-export the file as CSV in UTF-8") from None
+    except csv.Error as error:
+        raise ValueError(f"Input is not a well-formed CSV file ({error}). Check the quoting and line breaks") from None
     if not rows or rows[0] != HEADERS:
         raise ValueError("Expected the seven agreed inventory headers in order")
     data = rows[1:]
@@ -33,6 +40,8 @@ def normalise(column: str, value: str) -> str:
     if column == "Category":
         return CATEGORIES.get(value.casefold(), value)
     if column == "Quantity" and re.fullmatch(r"[0-9]+", value):
+        if len(value) > MAX_QUANTITY_DIGITS:
+            raise ValueError(f"Quantity has more than {MAX_QUANTITY_DIGITS} digits and cannot be converted")
         return str(int(value))
     if column == "Unit_Price_CAD" and re.fullmatch(r"[0-9]+(?:\.[0-9]{1,2})?", value):
         return format(Decimal(value), ".2f")
@@ -58,7 +67,10 @@ def clean_rows(rows: list[list[str]]) -> tuple[list[list[str]], dict]:
             removed.append({"source_row": source_row, "reason": "exact_duplicate", "duplicate_of": seen[key]})
             continue
         seen[key] = source_row
-        cleaned = [normalise(column, value) for column, value in zip(HEADERS, row)]
+        try:
+            cleaned = [normalise(column, value) for column, value in zip(HEADERS, row)]
+        except ValueError as error:
+            raise ValueError(f"Data record {source_row}: {error}") from None
         output.append(cleaned)
         output_row = len(output)
         provenance.append({"output_row": output_row, "source_row": source_row})
@@ -139,5 +151,14 @@ def write_demo(root: Path = ROOT) -> dict:
     return audit
 
 
+def main() -> int:
+    try:
+        print(json.dumps(write_demo()["summary"], indent=2))
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
 if __name__ == "__main__":
-    print(json.dumps(write_demo()["summary"], indent=2))
+    sys.exit(main())
